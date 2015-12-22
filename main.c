@@ -141,6 +141,23 @@ void lval_print(lval* v){
 
 void lval_println(lval* v){ lval_print(v); putchar('\n'); }
 
+lval* builtin_op(lval* a, char* op){
+  for(int i = 0; i < a-> count; i++){
+    if(a->cell[i]-> type != LVAL_NUM){
+      lval_del(a);
+      return lval_err("Cannot operate on non-number!");
+    }
+  }
+  lval* x = lval_pop(a, 0);
+  if((strcmp(op, "-") == 0) && a->count == 0){
+    x->num = -x->num;
+  }
+  while(a->count > 0){
+    lval* y = lval_pop(a, 0);
+    
+  }
+}
+
 lval eval_op(lval x, char* op, lval y){
  if(x.type == LVAL_ERR) {return x;}
  if(y.type == LVAL_ERR) {return y;}
