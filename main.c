@@ -21,28 +21,62 @@ void add_history(char* unused) {}
 #include <editline/history.h>
 #endif
 
-enum {LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM};
-enum {LVAL_NUM, LVAL_ERR};
+
+enum {LVAL_NUM, LVAL_ERR, LVAL_SEXPR, LVAL_SYM};
 
 typedef struct{
  int type;
  long num;
- int err;
+ char* err;
+ char* sym;
+ struct lval** cell;
 } lval;
 
-lval lval_num(long x){
- lval v;
- v.type = LVAL_NUM;
- v.num = x;
+lval* lval_num(long x){
+ lval* v = malloc(sizeof(lval));
+ v->type = LVAL_NUM;
+ v->num = x;
  return v;
 }
 
-lval lval_err(int x){
- lval v;
- v.type = LVAL_ERR;
- v.err = x;
+lval* lval_err(int x){
+ lval* v = malloc(sizeof(lval));
+ v->type = LVAL_ERR;
+ v->err = x;
  return v;
 }
+
+lval* lval_sym(char* s){
+  lval* v malloc(sizeof(lval));
+  v->type = LVAL_SYM;
+  v->sym = malloc(strlen(s) + 1);
+  strcpy(v->sym, s);
+  return v;
+}
+
+lval* lval_sexpr(viod){
+  lval* v = malloc(sizeof(lval));
+  v->type = LVAL_SEXPR;
+  v->count = 0;
+  v->cell = NULL;
+  return v;
+}
+
+void lval_del(lval* v){
+  switch(v->type){
+    case LVAL_NUM: break;
+    case LVAL_ERR: free(v->err); break;
+    case LVAL_SYM: free(v->sym); break;
+    case LVAL_SEXPR:
+      for(int i = 0; i < v->count; i++){
+        lval_del(v->cell[i]);
+      }
+      free(v->cell);
+      break;
+  }
+  free(v);
+}
+
 
 void lval_print(lval v){
  switch(v.type) {
@@ -63,7 +97,49 @@ void lval_print(lval v){
   }
 }
 
-void lval_println(lval v){lval_print(v); putchar('\n'); }
+lval* lval_add(lval* v, lval* x){
+  v->count++;
+  v->cell = realloc(v->cell, sizeof(lval) * v->count);
+  v->cell[v->count-1] = x;
+  return v;
+}
+
+lval* lval_pop(lval* v, int i){
+  lval* x = v->cell[i];
+  memmove(&v->cell[i], &v->cell[i+1], sizeof(lval*) *(v->count-i-1));
+  v->count--;
+  v->cell = realloc(v->cell, sizeof(lval*) * v->count);
+  return x;
+}
+
+lval* lval_take(lval* v, int i){
+  lval* x = lval_pop(v, i);
+  lval_del(v);
+  return x;
+}
+
+void lval_print(lval* v);
+void lval_expr_print(lval* v, char open, char close){
+  putchar(open);
+  for(int i = 0; i< v->count; i++){
+    lval_print(v->cell[i]);
+    if(i != v->count - 1){
+      putchar(' ');
+    }
+  }
+  putchar(close);
+}
+
+void lval_print(lval* v){
+  switch(v->type){
+    case LVAL_NUM: printf("%li", v-> num); break;
+    case LVAL_ERR: printf("Error is %s: ", v->err); break;
+    case LVAL_SYM: printf("%s", v->sym); break;
+    case LVAL_SEXPR: lval_expr_print(v, '[', ']'); break;
+  }
+}
+
+void lval_println(lval* v){ lval_print(v); putchar('\n'); }
 
 lval eval_op(lval x, char* op, lval y){
  if(x.type == LVAL_ERR) {return x;}
@@ -86,7 +162,7 @@ lval eval(mpc_ast_t* t){
 
  char* op = t->children[1]->contents;
  lval x = eval(t->children[2]);
- 
+
  int i = 3;
  while(strstr(t->children[i]->tag, "expr")) {
   x = eval_op(x, op, eval(t->children[i]));
@@ -116,7 +192,7 @@ int main(int argc, char** argv){
 
  puts("Jypsy Version 0.0.1");
  puts("Press Ctrl+C to Exit\n");
- 
+
  while(1){
  char* input = readline("Jypsy>> ");
  add_history(input);
@@ -136,5 +212,3 @@ int main(int argc, char** argv){
 
  return 0;
 }
-
-
